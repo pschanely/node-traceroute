@@ -5,7 +5,7 @@
   "version": "0.0.2",
   "repository": {
     "type": "git",
-    "url": "git://github.com/jaw187/node-traceroute.git}
+    "url": "git://github.com/jaw187/node-traceroute.git"
   },
   "dependencies": {},
   "devDependencies": {}
