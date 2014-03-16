@@ -54,6 +54,6 @@ property.  For example, to determine the address of the current gateway:
 require('traceroute')
 traceroute = require('traceroute');
 traceroute.trace('nodejs.org', {maxHops:1}, function(err, hops) {
-  if (!err) console.log('The current gateway is: ' + Object.keys(h[0])[0]);
+  if (!err) console.log('The current gateway is: ' + Object.keys(hops[0])[0]);
 });
 ```
