@@ -46,3 +46,14 @@ This example would write the following to the console if run from my network...
   { '216.239.43.76': [ 83.901, 85.089, 84.837 ] },
   { '74.125.224.240': [ 84.645, 75.322, 75.585 ] } ]
 ```
+
+The second parameter may be an options object, which may contain a "maxHops"
+property.  For example, to determine the address of the current gateway:
+
+```javascript
+require('./traceroute')
+traceroute = require('traceroute');
+traceroute.trace('nodejs.org', {maxHops:1}, function(err, hops) {
+  if (!err) console.log('The current gateway is: ' + Object.keys(h[0])[0]);
+});
+```
