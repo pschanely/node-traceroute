@@ -4,95 +4,59 @@ var child = require('child_process'),
     isWin = (/^win/.test(require('os').platform()));
 
 
-function parseHop(line) {
-  line = line.replace(/\*/g,'0');
-  if (isWin) line = line.replace(/\</g,'');
-  var s = line.split(' ');
-  for (var i=s.length - 1; i > -1; i--) {
-    if (s[i] === '') s.splice(i,1);
-    if (s[i] === 'ms') s.splice(i,1);
-  }
-
-  if (isWin) return parseHopWin(s);
-  else return parseHopNix(s);
-}
-
-function parseHopWin(line) {
-  if (line[4] === 'Request')
-    return false;
-
-  var hop = {};
-  hop[line[4]] = [ +line[1], +line[2], +line[3]];
-
-  return hop;
-}
-
-function parseHopNix(line) {
-  if (line[1] === '0') 
-    return false;
-  
-  var hop = {},
-      lastip = line[1];
-
-  hop[line[1]] = [+line[2]];
-
-  for (var i=3; i < line.length; i++) {
-    if (net.isIP(line[i])) {
-      lastip = line[i];
-      if (!hop[lastip])
-        hop[lastip] = [];
-    }
-    else hop[lastip].push(+line[i]);
-  }
-
-  return hop;
-}
-
 function parseOutput(output,cb) {
   var lines = output.split('\n'),
       hops=[];
+  var ipRe = /\b\d+\.\d+\.\d+\.\d+\b/
+  var timingRe = /([\d\.]+)\s+ms\b/g;
 
-  lines.shift();  
-  lines.pop();
-
-  if (isWin) { 
-    for (var i = 0; i < lines.length; i++)
-      if (/^\s+1/.test(lines[i]))
-        break;
-    lines.splice(0,i);
-    lines.pop(); lines.pop();
+  var results = []
+  for (var i = 0; i < lines.length; i++) {
+    var timingMatches = lines[i].match(timingRe)
+    if (timingMatches) {
+      ip = lines[i].match(ipRe)[0];
+      var timings = []
+      for (var j=0; j < timingMatches.length; j++) {
+	timingMatches[j].match(timingRe)
+	timings.push(parseFloat(RegExp.$1));
+      }
+      var record = {};
+      record[ip] = timings;
+      results.push(record);
+    }
   }
-
-  for (var i = 0; i < lines.length; i++)
-    hops.push(parseHop(lines[i]));
-
-  cb(null,hops);
+  cb(null,results);
 }
 
-function trace(host,cb) {
+function trace(host,opts,cb) {
+  if (arguments.length == 2) {
+    cb = opts;
+    opts = {};
+  }
   dns.lookup(host, function (err) {
     if (err && net.isIP(host) === 0)
       cb('Invalid host');
     else {
-      var traceroute;
-
+      var cmd;
       if (isWin) {
-        traceroute = child.exec('tracert -d ' + host, function (err,stdout,stderr) {
-          if (!err)
-            parseOutput(stdout,cb);
-        });
+	cmd = 'tracert -d';
+	if (opts.maxHops) cmd += ' -h ' + opts.maxHops;
+      } else {
+	cmd = 'traceroute -q 1 -n';
+	if (opts.maxHops) cmd += ' -m ' + opts.maxHops;
       }
-      else {
-        traceroute = child.exec('traceroute -q 1 -n ' + host, function (err,stdout,stderr) {
-          if (!err)
-            parseOutput(stdout,cb);
-        });
-      }
+      child.exec(cmd + ' ' + host, function (err,stdout,stderr) {
+        if (err) {
+	  cb(err)
+	} else {
+	  parseOutput(stdout,cb);
+	}
+      });
     }
   });
 }
 
-exports.trace = function (host,cb) {
+exports.trace = function (host,opts,cb) {
   host = host + '';
-  trace(host.toUpperCase(),cb);
+  trace(host.toUpperCase(),opts,cb);
 }
